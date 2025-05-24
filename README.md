@@ -51,7 +51,7 @@ A comprehensive MERN stack application for managing tasks across multiple organi
 
 1. **Clone the repository**
 \`\`\`bash
-git clone https://github.com/yourusername/mern-task-platform.git
+git clone https://github.com/HimanshuJ16/mern-task-platform.git
 cd mern-task-platform
 \`\`\`
 
