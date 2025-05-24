@@ -1,0 +1,70 @@
+version: '3.8'
+
+services:
+  # Production MongoDB with replica set
+  mongodb:
+    image: mongo:7.0
+    container_name: task-platform-db-prod
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+      MONGO_INITDB_DATABASE: task_platform
+    volumes:
+      - mongodb_prod_data:/data/db
+      - ./scripts/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+    networks:
+      - task-platform-network
+    command: mongod --replSet rs0 --bind_ip_all
+
+  # Production Backend
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: task-platform-backend-prod
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      MONGODB_URI: ${MONGODB_URI}
+      REDIS_URL: ${REDIS_URL}
+      JWT_SECRET: ${JWT_SECRET}
+      EMAIL_HOST: ${EMAIL_HOST}
+      EMAIL_PORT: ${EMAIL_PORT}
+      EMAIL_USER: ${EMAIL_USER}
+      EMAIL_PASS: ${EMAIL_PASS}
+    depends_on:
+      - mongodb
+    networks:
+      - task-platform-network
+    healthcheck:
+      test: ["CMD", "node", "backend/healthcheck.js"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Nginx Load Balancer
+  nginx:
+    image: nginx:alpine
+    container_name: task-platform-nginx-prod
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.prod.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - nginx_logs:/var/log/nginx
+    depends_on:
+      - backend
+    networks:
+      - task-platform-network
+
+volumes:
+  mongodb_prod_data:
+  nginx_logs:
+
+networks:
+  task-platform-network:
+    driver: bridge
